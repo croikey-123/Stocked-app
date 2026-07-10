@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16261F">
+<title>Stocked</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A5%AB%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="mark">Stocked</span>
+      <span class="tag">know what you have</span>
+    </div>
+    <nav class="tabs">
+      <button data-tab="pantry" class="active">Pantry</button>
+      <button data-tab="cook">Cook Tonight</button>
+      <button data-tab="list">List</button>
+    </nav>
+  </header>
+
+  <div id="pantry-tab">
+    <div id="error-box"></div>
+
+    <div class="hero">
+      <div class="stat"><span class="num" id="stat-total">0</span><span class="lbl">Items stocked</span></div>
+      <div class="stat warn"><span class="num" id="stat-soon">0</span><span class="lbl">Expiring soon</span></div>
+      <div class="stat"><span class="num" id="stat-low">0</span><span class="lbl">Running low</span></div>
+    </div>
+
+    <div class="quickadd">
+      <div class="field name">
+        <label for="in-name">Item</label>
+        <input type="text" id="in-name" placeholder="e.g. Whole milk">
+      </div>
+      <div class="field">
+        <label for="in-cat">Category</label>
+        <select id="in-cat">
+          <option>Dairy</option>
+          <option>Produce</option>
+          <option>Meat & Fish</option>
+          <option>Grains</option>
+          <option>Canned & Jarred</option>
+          <option>Frozen</option>
+          <option>Condiments</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Quantity</label>
+        <div class="qtybox">
+          <button class="stepbtn" id="qty-down" type="button">−</button>
+          <input type="number" id="in-qty" value="1" min="0">
+          <button class="stepbtn" id="qty-up" type="button">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="in-unit">Unit</label>
+        <select id="in-unit">
+          <option>ct</option>
+          <option>carton</option>
+          <option>lb</option>
+          <option>oz</option>
+          <option>bag</option>
+          <option>jar</option>
+          <option>bottle</option>
+          <option>box</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="in-threshold">Low stock at</label>
+        <input type="number" id="in-threshold" value="1" min="0" style="width:64px;">
+      </div>
+      <div class="field">
+        <label>Expires</label>
+        <div class="expirychips" id="expiry-chips">
+          <button class="chip" data-days="3">3d</button>
+          <button class="chip" data-days="7">1wk</button>
+          <button class="chip" data-days="14">2wk</button>
+          <button class="chip selected" data-days="30">1mo</button>
+          <button class="chip" data-days="180">6mo</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="addbtn" id="add-item-btn">Add to pantry</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">On the shelves <span class="count" id="shelf-count">0</span></h2>
+    <div class="pantry-toolbar">
+      <input type="search" id="pantry-search" placeholder="Search your pantry...">
+    </div>
+    <div id="shelves"></div>
+  </div>
+
+  <div id="cook-tab" style="display:none;">
+    <h2 class="section-title" style="margin-top:16px;">What can I make?</h2>
+    <p class="cook-lead">Ranked by how much of the recipe is already in your pantry. Missing ingredients are marked red — cooking anyway sends them straight to your shopping list.</p>
+    <div id="recipes"></div>
+  </div>
+  <div id="list-tab" style="display:none;">
+    <h2 class="section-title" style="margin-top:16px;">Shopping list <span class="count" id="list-count">0</span></h2>
+    <div class="list-add">
+      <input type="text" id="in-list-item" placeholder="Add something you need...">
+      <button id="add-list-btn">Add</button>
+    </div>
+    <div id="list-items"></div>
+  </div>
+</div>
+
+<div id="edit-modal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <h3>Edit item</h3>
+    <div class="modal-grid">
+      <div class="field name">
+        <label for="edit-name">Item</label>
+        <input type="text" id="edit-name">
+      </div>
+      <div class="field">
+        <label for="edit-cat">Category</label>
+        <select id="edit-cat"></select>
+      </div>
+      <div class="field">
+        <label>Quantity</label>
+        <div class="qtybox">
+          <button class="stepbtn" id="edit-qty-down" type="button">−</button>
+          <input type="number" id="edit-qty" min="0">
+          <button class="stepbtn" id="edit-qty-up" type="button">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="edit-unit">Unit</label>
+        <select id="edit-unit"></select>
+      </div>
+      <div class="field">
+        <label for="edit-threshold">Low stock at</label>
+        <input type="number" id="edit-threshold" min="0">
+      </div>
+      <div class="field">
+        <label for="edit-expiry">Expires</label>
+        <input type="date" id="edit-expiry">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="edit-cancel" class="btn-secondary" type="button">Cancel</button>
+      <button id="edit-save" class="addbtn" type="button">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
