@@ -1,4 +1,4 @@
-# Stocked — Week 1 + Week 2 Build
+# Stocked — Week 1 + Week 2 + Week 3 Build
 
 **Week 1** (Foundation & Inventory): a working local app with a real
 database, a CRUD API, and a frontend that's actually wired to it.
@@ -6,21 +6,32 @@ database, a CRUD API, and a frontend that's actually wired to it.
 **Week 2** (The Brains): the "What Can I Make?" recipe engine and the smart
 shopping list, both live in the Cook Tonight and List tabs.
 
+**Week 3** (Polish, Mobile, Deployment): an edit modal, toasts, a loading
+skeleton, and pantry search; a thorough mobile responsiveness pass; and the
+app is now deployable, including the SQLite → Postgres swap for production.
+
 ## What's here
 
 ```
 stocked-app/
 ├── backend/
-│   ├── db.js                    # SQLite schema (PantryItems + ShoppingListItems) + seed data
-│   ├── recipes.js               # Hardcoded recipe database (Option A from the plan)
-│   ├── server.js                # Express app entry point
-│   ├── routes/pantry.js         # GET / POST / PATCH / DELETE for inventory
-│   ├── routes/recipes.js        # GET /suggestions, POST /cook
-│   ├── routes/shoppingList.js   # GET / POST / PATCH / DELETE for the shopping list
+│   ├── db/
+│   │   ├── index.js              # Picks sqlite.js or postgres.js based on DATABASE_URL
+│   │   ├── sqlite.js              # Local dev database (better-sqlite3)
+│   │   └── postgres.js           # Production database (pg), same interface as sqlite.js
+│   ├── recipes.js                # Hardcoded recipe database (Option A from the plan)
+│   ├── server.js                 # Express app entry point
+│   ├── routes/pantry.js          # GET / POST / PATCH / DELETE for inventory
+│   ├── routes/recipes.js         # GET /suggestions, POST /cook
+│   ├── routes/shoppingList.js    # GET / POST / PATCH / DELETE for the shopping list
+│   ├── .env.example              # Copy to .env; PORT / DATABASE_URL / ALLOWED_ORIGIN
+│   ├── render.yaml                # One-click Render blueprint
+│   ├── Procfile                  # For Railway/Heroku-style hosts
 │   └── package.json
 └── frontend/
-    ├── index.html         # Pantry dashboard + Cook Tonight + Shopping List tabs
-    ├── app.js             # Fetches from the API, renders all three tabs
+    ├── index.html         # Pantry dashboard + Cook Tonight + Shopping List tabs, edit modal
+    ├── app.js             # Fetches from the API, renders all three tabs, toasts, search
+    ├── config.js          # API_BASE — the only thing you edit to point at a deployed backend
     └── style.css
 ```
 
@@ -93,7 +104,10 @@ cd backend
 npm install
 npm start
 ```
-You should see `Stocked API running at http://localhost:4000`.
+You should see `Stocked API running at http://localhost:4000 (db: sqlite)`.
+No `.env` file is needed for local dev — leaving `DATABASE_URL` unset is what
+tells it to use SQLite. See `.env.example` if you want to set a custom
+`PORT`, or [Deploying it](#deploying-it) below for production config.
 
 **Terminal 2 — frontend**
 
@@ -130,8 +144,50 @@ Then open the URL it prints (usually `http://localhost:3000`).
 5. Check an item off the list — switch to **Pantry** and confirm it came
    back into stock.
 
-If all of that checks out, Week 2 is done and Week 3 (polish, mobile
-responsiveness, deployment) is next.
+**Milestone 3 (polish + mobile):**
+1. Click the pencil icon on any jar — the edit modal should open pre-filled;
+   change a value and save, and the jar should update immediately.
+2. Add, edit, cook, or check off an item — a small toast should confirm the
+   action instead of just silently refreshing.
+3. Type into the pantry search box — the shelves should filter live by name.
+4. Reload the page on a fresh load — you should briefly see pulsing
+   placeholder jars before the real data appears.
+5. Open the app on a phone (or shrink your browser to ~375px wide) — the
+   quick-add form should stack into a single column, buttons should be easy
+   to tap, and nothing should scroll horizontally.
+
+If all of that checks out, Week 3 is done.
+
+## Deploying it
+
+The app is split into two independently deployable pieces:
+
+**Backend → Render (or Railway)**
+1. Push this repo to GitHub if you haven't already.
+2. On Render: **New → Blueprint**, point it at the repo — it'll read
+   `backend/render.yaml` and provision the service automatically. (Railway
+   users can skip the blueprint and just set the root directory to
+   `backend`; it reads `Procfile`.)
+3. Add a Postgres database (Render: **New → PostgreSQL**, free tier is
+   fine) and copy its connection string into the `DATABASE_URL` env var on
+   the backend service. This is what switches the app from SQLite to
+   Postgres — `backend/db/index.js` picks the right adapter automatically,
+   no code changes needed.
+4. Once deployed, note the backend's public URL
+   (e.g. `https://stocked-backend.onrender.com`).
+
+**Frontend → Vercel or Netlify**
+1. Deploy the `frontend/` folder as a static site (no build command needed).
+2. Edit `frontend/config.js` and set `API_BASE` to your backend's URL from
+   above, with `/api` on the end — e.g.
+   `"https://stocked-backend.onrender.com/api"`. Commit and redeploy.
+3. Back on the backend, set `ALLOWED_ORIGIN` to your frontend's URL (e.g.
+   `https://stocked.vercel.app`) so CORS only allows that origin in
+   production.
+
+Local dev is unaffected by any of this — with `DATABASE_URL` and
+`ALLOWED_ORIGIN` unset, the backend defaults straight back to SQLite and
+open CORS.
 
 ## Notes on what's intentionally deferred
 
@@ -142,10 +198,10 @@ responsiveness, deployment) is next.
   `backend/recipes.js` and `routes/recipes.js`; the frontend doesn't care
   where the data comes from.
 - **Auth/Users** table was skipped per the brief; every request currently
-  operates on one shared pantry and one shared shopping list.
-- **Deployment** (Days 19-20) isn't done yet — this README covers local dev
-  only. The natural path once Week 3 polish is in: push this repo to GitHub,
-  deploy `frontend/` to Vercel or Netlify, deploy `backend/` to Render or
-  Railway (swapping SQLite for their Postgres add-on, since most free hosts
-  don't persist a local file between deploys), and point the frontend's
-  `API_BASE` at the live backend URL.
+  operates on one shared pantry and one shared shopping list. This is the
+  main thing that'd need to change before this could support more than one
+  household — every table would need a `user_id`, and the frontend would
+  need a login step.
+- **Recipe search/filtering** on the Cook Tonight tab wasn't added — with
+  only 12 hardcoded recipes it wasn't needed yet, but it's a natural
+  follow-up if `recipes.js` grows or gets swapped for a real API.
