@@ -1,4 +1,4 @@
-# Stocked — Week 1 + Week 2 + Week 3 Build
+# Stocked — Week 1 + Week 2 + Week 3 + Week 4 Build
 
 **Week 1** (Foundation & Inventory): a working local app with a real
 database, a CRUD API, and a frontend that's actually wired to it.
@@ -10,6 +10,10 @@ shopping list, both live in the Cook Tonight and List tabs.
 skeleton, and pantry search; a thorough mobile responsiveness pass; and the
 app is now deployable, including the SQLite → Postgres swap for production.
 
+**Week 4** (Real recipe API): Cook Tonight can now run on live Spoonacular
+data instead of the hardcoded 12-recipe list — recipe images included —
+while still working with zero config if you don't set up a key.
+
 ## What's here
 
 ```
@@ -19,12 +23,16 @@ stocked-app/
 │   │   ├── index.js              # Picks sqlite.js or postgres.js based on DATABASE_URL
 │   │   ├── sqlite.js              # Local dev database (better-sqlite3)
 │   │   └── postgres.js           # Production database (pg), same interface as sqlite.js
-│   ├── recipes.js                # Hardcoded recipe database (Option A from the plan)
+│   ├── recipes/
+│   │   ├── index.js              # Picks hardcoded.js or spoonacular.js based on SPOONACULAR_API_KEY
+│   │   ├── hardcoded.js           # Option A: the Week 2 12-recipe list (zero config)
+│   │   ├── spoonacular.js        # Option B: live Spoonacular API (Week 4)
+│   │   └── data.js               # The hardcoded recipe list itself
 │   ├── server.js                 # Express app entry point
 │   ├── routes/pantry.js          # GET / POST / PATCH / DELETE for inventory
 │   ├── routes/recipes.js         # GET /suggestions, POST /cook
 │   ├── routes/shoppingList.js    # GET / POST / PATCH / DELETE for the shopping list
-│   ├── .env.example              # Copy to .env; PORT / DATABASE_URL / ALLOWED_ORIGIN
+│   ├── .env.example              # Copy to .env; PORT / DATABASE_URL / ALLOWED_ORIGIN / SPOONACULAR_API_KEY
 │   ├── render.yaml                # One-click Render blueprint
 │   ├── Procfile                  # For Railway/Heroku-style hosts
 │   └── package.json
@@ -189,19 +197,53 @@ Local dev is unaffected by any of this — with `DATABASE_URL` and
 `ALLOWED_ORIGIN` unset, the backend defaults straight back to SQLite and
 open CORS.
 
+## Using the real recipe API (Week 4)
+
+Cook Tonight runs on the hardcoded 12-recipe list by default — nothing to
+configure. To switch it over to live Spoonacular data:
+
+1. Get a free API key at [spoonacular.com/food-api](https://spoonacular.com/food-api).
+2. Add it to `backend/.env`:
+   ```
+   SPOONACULAR_API_KEY=your-key-here
+   ```
+3. Restart the backend. The startup log will say
+   `(db: sqlite, recipes: spoonacular)` instead of `recipes: hardcoded`.
+
+`backend/recipes/index.js` is what switches between them, and it's the only
+thing that has to — `routes/recipes.js` and the frontend don't know or care
+which source is active. Both return the same shape:
+`{ name, image, ingredients: [{name, have}], haveCount, total, fullMatch }`.
+
+A few things worth knowing about the Spoonacular path:
+- It uses the `findByIngredients` endpoint, which is built for exactly this
+  "what can I make with what I have" use case — it returns
+  `usedIngredients`/`missedIngredients` per recipe already computed, so no
+  extra per-recipe lookups are needed.
+- Suggestions are cached in memory for 2 minutes per unique pantry
+  contents, so flipping between tabs doesn't burn through your daily quota.
+  Free-tier quotas are modest — check
+  [spoonacular.com/food-api/pricing](https://spoonacular.com/food-api/pricing)
+  for current numbers before relying on it for a real household.
+- Cooking a Spoonacular recipe sends the ingredient breakdown the frontend
+  already has back to the server, instead of re-fetching it — one API call
+  per recipe view, not two.
+
+**Sanity check:** with a key set, open **Cook Tonight** — recipes should now
+show a thumbnail image and come from Spoonacular's much larger database
+instead of the fixed 12. Cooking one should still decrement your pantry and
+queue missing ingredients exactly like before.
+
 ## Notes on what's intentionally deferred
 
-- **Recipe matching** is exact-name string matching against a 12-recipe
-  hardcoded list (Option A from the plan). It doesn't understand quantities
-  needed per recipe (e.g. "2 eggs" vs "6 eggs") or substitutions — swapping
-  in a real API (Option B, e.g. Spoonacular) later means only touching
-  `backend/recipes.js` and `routes/recipes.js`; the frontend doesn't care
-  where the data comes from.
+- **Recipe matching** on both sources is still exact-name string matching
+  against your pantry item names, and doesn't understand quantities needed
+  per recipe (e.g. "2 eggs" vs "6 eggs") or ingredient substitutions.
 - **Auth/Users** table was skipped per the brief; every request currently
   operates on one shared pantry and one shared shopping list. This is the
   main thing that'd need to change before this could support more than one
   household — every table would need a `user_id`, and the frontend would
   need a login step.
-- **Recipe search/filtering** on the Cook Tonight tab wasn't added — with
-  only 12 hardcoded recipes it wasn't needed yet, but it's a natural
-  follow-up if `recipes.js` grows or gets swapped for a real API.
+- **Recipe search/filtering** on the Cook Tonight tab wasn't added — with a
+  10-result Spoonacular page there's less need than there might eventually
+  be, but it's a natural follow-up.
