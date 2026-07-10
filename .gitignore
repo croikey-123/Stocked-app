@@ -3,5 +3,5 @@ backend/stocked.db
 backend/stocked.db-journal
 backend/stocked.db-wal
 backend/stocked.db-shm
-backend/.env
+backend/.env\
 .DS_Store
